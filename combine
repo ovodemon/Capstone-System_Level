@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Mar 21 10:49:36 2024
+
+@author: zhouy24
+"""
+
+import _4_folded_array
+import _4_tree_array
+import jax
+import jax.example_libraries.optimizers as opt
+import jax.numpy as npj
+import matplotlib.pyplot as plt  # plotting
+import sax
+from tqdm.notebook import trange
+
+
+'Power Combiner: need determine in1 and in2'
+def  powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, length=0.5, n_eff=3.0):
+    ampl = npj.sqrt(npj.square(ampl_1) + npj.square(ampl_2) + 2*ampl_1*ampl_2*npj.exp(1.j*(phace_1-phace_2)))
+    phase_combine = npj.arctan((ampl_1*npj.sin(phace_1)+ampl_2*npj.sin(phace_2)) / (ampl_1*npj.cos(phace_1)+ampl_2*npj.cos(phace_2)))
+    phase_length = 2*npj.pi*length*n_eff/wavelen
+    power_out = npj.square(ampl * npj.exp(1.j*(phase_combine+phase_length)))
+    sdict = sax.reciprocal(
+        {
+            ("in0", "out0"): -npj.sqrt(power_out/(npj.square(ampl_1))),
+            ("in1", "out0"): -npj.sqrt(power_out/(npj.square(ampl_2)))
+        }
+        )
+    return sdict
+
+theta = npj.linspace(0, 90, 100)
+ampl_1 = npj.abs(_4_folded_array.mzi_array_theta[('in0', 'out0')])
+phace_1 = npj.angle(_4_folded_array.mzi_array_theta[('in0', 'out0')])
+ampl_2 = npj.abs(_4_tree_array.mzi_array_theta[('in0', 'out0')])
+phace_2 = npj.angle(_4_tree_array.mzi_array_theta[('in0', 'out0')])
+
+mzi_array_theta = powercombine(ampl_1, ampl_2, phace_1, phace_2)
+mzi_array_S11 = npj.abs(mzi_array_theta[('in0', 'out0')])
+
+fig, ax1 = plt.subplots(1)
+'ax2 = ax1.twinx()'
+ax1.plot(theta, mzi_array_S11, color="red", label="S11")
+ax1.set_ylabel(r"Transmission Effciency")
+ax1.set_xlabel(r"Angle [deg]")
+fig.suptitle("Combining Array")
+"""
+ax2.plot(theta, mzi_array_S12, color="red", label="S13")
+"""
+plt.legend()
+plt.show()
