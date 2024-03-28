@@ -161,7 +161,7 @@ rest_model, info2 = sax.circuit(
             "ports": {
                 "in0": "cp,in0",
                 "in1": "sb02,in0",
-                "out0": "nb,out0",
+                "out0": "pc,out0",
             },
         },
         models={
