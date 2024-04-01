@@ -62,7 +62,7 @@ def taper(a=0.4, b=0.5, c=7, z=0.9, wavelen=1.55, n_eff=3.0, length=0.3, alpha=0
     return sdict
 
 '90 degree bend'
-def ninetybend(wavelen=1.55, n_eff=3.0, length=0.2, alpha=0.0):
+def ninetybend(wavelen=1.55, n_eff=3.0, length=0.5, alpha=0.0):
     """A simple mode of a waveguide with phase change and loss. All lengthscale units
     are in microns."""
     phase = 2*npj.pi*length*n_eff/wavelen
@@ -86,7 +86,7 @@ def sbend(wavelen=1.55, n_eff=3.0, length=1, alpha=0.0):
         }
     )
     return sdict
-'''
+
 'Power Combiner: need determine in1 and in2'
 def  powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, length=0.5, n_eff=3.0):
     ampl = npj.sqrt(npj.square(ampl_1) + npj.square(ampl_2) + 2*ampl_1*ampl_2*npj.exp(1.j*(phace_1-phace_2)))
@@ -100,102 +100,64 @@ def  powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, le
         }
         )
     return sdict
-'''
-def  powercombine():
-    sdict = sax.reciprocal(
-        {
-            ("in0", "out0"): 0.99,
-            ("in1", "out0"): 0.99
-        }
-        )
-    return sdict
 
 
-num_stacks = 2
+num_stacks = 5
 
 
-
-'The first part of grating array, including coupler, taper and 90-degree bend'
+'The first part of grating array, including coupler, taper, 90-degree bend and sbend'
 coupler_model,info1 = sax.circuit(
         netlist={
             "instances": {
                 "cp": "coupler",
                 "tp": "taper",
                 "nb": "ninetybend",
+                "sb": "sbend"
             },
             "connections": {
                 "cp,out0": "tp,in0",
                 "tp,out0": "nb,in0",
+                "nb,out0": "sb,in0"
             },
             "ports": {
                 "in0": "cp,in0",
-                "out0": "nb,out0",
+                "out0": "sb,out0",
             },
         },
         models={
             "coupler": coupler,
             "taper": taper,
             "ninetybend": ninetybend,
+            "sbend": sbend
         },
     )
-
-'''The rest parts of grating array. Each part include coupler, taper, 90-degree bend,
-two s-bends and power combiner'''
-rest_model, info2 = sax.circuit(
-        netlist={
-            "instances": {
-                "cp": "coupler",
-                "tp": "taper",
-                "nb": "ninetybend",
-                "sb01": "sbend",
-                "sb02": "sbend",
-                "pc": "powercombiner",
-            },
-            "connections": {
-                "cp,out0": "tp,in0",
-                "tp,out0": "nb,in0",
-                "nb,out0": "sb01,in0",
-                "sb01,out0": "pc,in0",
-                "sb02,out0": "pc,in1",
-            },
-            "ports": {
-                "in0": "cp,in0",
-                "in1": "sb02,in0",
-                "out0": "pc,out0",
-            },
-        },
-        models={
-            "coupler": coupler,
-            "taper": taper,
-            "ninetybend": ninetybend,
-            "sbend": sbend,
-            "powercombiner": powercombine,
-        },
-    )
-
-
 
 
 'X folded grating array'
 _X_folded_array, info = sax.circuit(
     netlist={
         "instances": {
-            "cm": "coupler_model",
-            **{f"rm{i}": "rest_model" for i in range(num_stacks)},
+            **{f"cm{i}": "coupler_model" for i in range(num_stacks)},
+            **{f"pc{i}": "powercombiner" for i in range(num_stacks)},
+            **{f"sb{i}": "sbend" for i in range(num_stacks-1)},
         },
         "connections": {
-            "cm,out0": f"rm0,in1",
-            **{f"rm{i},out0": f"rm{i+1},in1" for i in range(num_stacks - 1)},
+            "cm0,out0": "pc0,in1",
+            **{f"cm{i+1},out0": f"pc{i},in0" for i in range(num_stacks - 1)},
+            **{f"pc{i},out0": f"sb{i},in0" for i in range(num_stacks - 1)},
+            **{f"sb{i},out0": f"pc{i+1},in1" for i in range(num_stacks - 1)},
         },
         "ports": {
-            "in0": "cm,in0",
-            **{f"in{i+1}": f"rm{i},in0" for i in range(num_stacks - 1)},
-            "out0": f"rm{num_stacks-2},out0",
+            **{f"in{i}": f"cm{i},in0" for i in range(num_stacks)},
+            "out0": "cm0,out0",
+            **{f"out{i+1}": f"sb{i},out0" for i in range(num_stacks - 1)},
+            **{f"out{i+num_stacks}": f"cm{i+1},out0" for i in range(num_stacks - 1)}
         },
     },
     models={
         "coupler_model": coupler_model,
-        "rest_model": rest_model,
+        "powercombiner": powercombine,
+        "sbend": sbend,
     },
 )
 
@@ -204,73 +166,55 @@ theta = npj.linspace(0, 90, 100)
 
 
 
-'''
+
 "Determine input wave to each power combiner"
-mzi_array_theta = _4_folded_array(
-                        first_coupler={"theta": theta},
-                        second_coupler={"theta": theta},
-                        third_coupler={"theta": theta},
-                        fourth_coupler={"theta": theta})
-"Determine input wave to the first power combiner"
-pc1_ampl1 = npj.abs(mzi_array_theta[('in0', 'out1')])
-pc1_phace1 = npj.angle(mzi_array_theta[('in0', 'out1')])
-pc1_ampl2 = npj.abs(mzi_array_theta[('in1', 'out2')])
-pc1_phace2 = npj.angle(mzi_array_theta[('in1', 'out2')])
-mzi_array_theta = _4_folded_array(
-                        first_coupler={"theta": theta},
-                        second_coupler={"theta": theta},
-                        powercombine1={"ampl_1": pc1_ampl1, "ampl_2": pc1_ampl2,
-                                       "phace_1": pc1_phace1, "phace_2": pc1_phace2},
-                        third_coupler={"theta": theta},
-                        fourth_coupler={"theta": theta})
-
-"Determine input wave to the second power combiner"
-pc2_ampl1 = npj.abs(mzi_array_theta[('in0', 'out3')])/2
-pc2_phace1 = npj.angle(mzi_array_theta[('in0', 'out3')])
-pc2_ampl2 = npj.abs(mzi_array_theta[('in2', 'out4')])
-pc2_phace2 = npj.angle(mzi_array_theta[('in2', 'out4')])
-mzi_array_theta = _4_folded_array(
-                        first_coupler={"theta": theta},
-                        second_coupler={"theta": theta},
-                        powercombine1={"ampl_1": pc1_ampl1, "ampl_2": pc1_ampl2,
-                                       "phace_1": pc1_phace1, "phace_2": pc1_phace2},
-                        third_coupler={"theta": theta},
-                        powercombine2={"ampl_1": pc2_ampl1, "ampl_2": pc2_ampl2,
-                                       "phace_1": pc2_phace1, "phace_2": pc2_phace2},
-                        fourth_coupler={"theta": theta})
-
-"Determine input wave to the third power combiner"
-pc3_ampl1 = npj.abs(mzi_array_theta[('in0', 'out5')])/3
-pc3_phace1 = npj.angle(mzi_array_theta[('in0', 'out5')])
-pc3_ampl2 = npj.abs(mzi_array_theta[('in3', 'out6')])
-pc3_phace2 = npj.angle(mzi_array_theta[('in3', 'out6')])
-mzi_array_theta = _4_folded_array(
-                        first_coupler={"theta": theta},
-                        second_coupler={"theta": theta},
-                        powercombine1={"ampl_1": pc1_ampl1, "ampl_2": pc1_ampl2,
-                                       "phace_1": pc1_phace1, "phace_2": pc1_phace2},
-                        third_coupler={"theta": theta},
-                        powercombine2={"ampl_1": pc2_ampl1, "ampl_2": pc2_ampl2,
-                                       "phace_1": pc2_phace1, "phace_2": pc2_phace2},
-                        fourth_coupler={"theta": theta},
-                        powercombine3={"ampl_1": pc3_ampl1, "ampl_2": pc3_ampl2,
-                                       "phace_1": pc3_phace1, "phace_2": pc3_phace2})
+"Initial setting"
+_X_folded_array_theta = _X_folded_array(
+                            **{f"cm{i}": {'cp': {'theta': theta}} for i in range (num_stacks)},
+                            )
 
 
-mzi_array_S11 = npj.abs(mzi_array_theta[('in0', 'out0')])
-mzi_array_S12 = npj.abs(mzi_array_theta[('in2', 'out0')])
+"Loop to modify every power combiner"
+
+
+ampl1_pc = dict()
+phace1_pc = dict()
+ampl2_pc = dict()
+phace2_pc = dict()
+ctr = 1
+
+for i in range (num_stacks - 1):
+    ampl1_pc[i] = npj.abs(_X_folded_array_theta[('in0','out'+str(i))])/(i+1)
+    phace1_pc[i] =  npj.angle(_X_folded_array_theta[('in0','out'+str(i))])
+    ampl2_pc[i] = npj.abs(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
+    phace2_pc[i] = npj.angle(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
+    _X_folded_array_theta = _X_folded_array(
+                                **{f"cm{j}": {'cp': {'theta': theta}} for j in range (num_stacks)},
+                                **{f'pc{k}': {'ampl_1': ampl1_pc[i], 'phace_1': phace1_pc[i],
+                                              'ampl_2': ampl2_pc[i], 'phace_2': phace2_pc[i]}
+                                               for k in range (ctr)
+                                   }
+                                )
+    ctr += 1
+
+
+
+
+_X_folded_array_S11 = npj.abs(_X_folded_array_theta[('in1', 'out'+str(num_stacks-1))])
+_X_folded_array_S13 = npj.abs(_X_folded_array_theta[('in2', 'out'+str(num_stacks-1))])
 
 fig, ax1 = plt.subplots(1)
 'ax2 = ax1.twinx()'
-ax1.plot(theta, mzi_array_S11, color="red", label="S11")
+ax1.plot(theta, _X_folded_array_S11, color="red", label="S11")
 ax1.set_ylabel(r"Transmission Effciency")
 ax1.set_xlabel(r"Angle [deg]")
-fig.suptitle("4-coupler Folded Array")
+fig.suptitle("X-coupler Folded Array")
 """
 ax2.plot(theta, mzi_array_S12, color="red", label="S13")
 """
 plt.legend()
 plt.show()
 
-'''
+
+
 
