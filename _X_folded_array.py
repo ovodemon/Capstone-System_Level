@@ -11,6 +11,7 @@ import jax.example_libraries.optimizers as opt
 import jax.numpy as npj
 import matplotlib.pyplot as plt  # plotting
 import sax
+import time
 from tqdm.notebook import trange
 
 
@@ -95,14 +96,17 @@ def  powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, le
     power_out = npj.square(ampl * npj.exp(1.j*(phase_combine+phase_length)))
     sdict = sax.reciprocal(
         {
-            ("in0", "out0"): -npj.sqrt(power_out/(npj.square(ampl_1))),
-            ("in1", "out0"): -npj.sqrt(power_out/(npj.square(ampl_2)))
+            ("in0", "out0"): npj.sqrt(power_out/(npj.square(ampl_1))),
+            ("in1", "out0"): npj.sqrt(power_out/(npj.square(ampl_2))),
         }
         )
     return sdict
 
 
-num_stacks = 5
+num_stacks = int(input("The number of stacks: "))
+
+
+start = time.time()
 
 
 'The first part of grating array, including coupler, taper, 90-degree bend and sbend'
@@ -184,7 +188,7 @@ phace2_pc = dict()
 ctr = 1
 
 for i in range (num_stacks - 1):
-    ampl1_pc[i] = npj.abs(_X_folded_array_theta[('in0','out'+str(i))])/(i+1)
+    ampl1_pc[i] = npj.abs(_X_folded_array_theta[('in0','out'+str(i))])/((i+1)**2)
     phace1_pc[i] =  npj.angle(_X_folded_array_theta[('in0','out'+str(i))])
     ampl2_pc[i] = npj.abs(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
     phace2_pc[i] = npj.angle(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
@@ -200,7 +204,7 @@ for i in range (num_stacks - 1):
 
 
 
-_X_folded_array_S11 = npj.abs(_X_folded_array_theta[('in1', 'out'+str(num_stacks-1))])
+_X_folded_array_S11 = npj.abs(_X_folded_array_theta[('in0', 'out'+str(num_stacks-1))])
 _X_folded_array_S13 = npj.abs(_X_folded_array_theta[('in2', 'out'+str(num_stacks-1))])
 
 fig, ax1 = plt.subplots(1)
@@ -215,6 +219,6 @@ ax2.plot(theta, mzi_array_S12, color="red", label="S13")
 plt.legend()
 plt.show()
 
-
-
+end= time.time()
+print(f"time: {end - start} s")
 
