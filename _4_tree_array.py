@@ -15,52 +15,6 @@ from tqdm.notebook import trange
 from model_draft import *
 
 
-'Combine coupler, taper, 90 degree bend and S-bend into one Model'
-def coupler_model() -> sax.Model:
-    coupler_model,_ = sax.circuit(
-        netlist={
-            "instances": {
-                "cp": "coupler",
-                "tp": "taper",
-                "nb": "ninetybend",
-                "sb": "sbend",
-            },
-            "connections": {
-                "cp,out0": "tp,in0",
-                "tp,out0": "nb,in0",
-                "nb,out0": "sb,in0",
-            },
-            "ports": {
-                "in0": "cp,in0",
-                "out0": "sb,out0",
-            },
-        },
-        models={
-            "coupler": coupler,
-            "taper": taper,
-            "ninetybend": ninetybend,
-            "sbend": sbend,
-        },
-    )
-    return coupler_model
-
-'Power Combiner: need determine in1 and in2'
-def  powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, length=0.5, n_eff=3.0):
-    ampl = npj.sqrt(npj.square(ampl_1) + npj.square(ampl_2) + 2*ampl_1*ampl_2*npj.exp(1.j*(phace_1-phace_2)))
-    phase_combine = npj.arctan((ampl_1*npj.sin(phace_1)+ampl_2*npj.sin(phace_2)) / (ampl_1*npj.cos(phace_1)+ampl_2*npj.cos(phace_2)))
-    phase_length = 2*npj.pi*length*n_eff/wavelen
-    power_out = npj.square(ampl * npj.exp(1.j*(phase_combine+phase_length)))
-    sdict = sax.reciprocal(
-        {
-            ("in0", "out0"): -npj.sqrt(power_out/(npj.square(ampl_1))),
-            ("in1", "out0"): -npj.sqrt(power_out/(npj.square(ampl_2)))
-        }
-        )
-    return sdict
-
-
-
-
 '4 folded grating array'
 _4_tree_array, info = sax.circuit(
     netlist={
