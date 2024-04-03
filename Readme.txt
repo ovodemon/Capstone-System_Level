@@ -1,0 +1,13 @@
+Still Updating
+
+1. Transmission Efficiency vs Angle
+	a. Open SAX/_X_folded_array
+	b. Run code
+	c. Type the number of stacks you want
+	d. Wait for the result
+
+2. Transmission Efficiency vs Length of S-bend
+	a. Open SAX/_X_folded_array_sbend-length
+	b. Run code
+	c. Type the number of stacks you want
+	d. Wait for the result
