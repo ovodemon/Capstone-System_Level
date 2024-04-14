@@ -6,13 +6,7 @@ Created on Mon Mar 25 10:19:24 2024
 @author: zhouy24
 """
 
-import jax
-import jax.example_libraries.optimizers as opt
-import jax.numpy as npj
-import matplotlib.pyplot as plt  # plotting
-import sax
 import time
-from tqdm.notebook import trange
 from model_draft import *
 
 
@@ -78,17 +72,22 @@ _X_folded_array, info = sax.circuit(
     },
 )
 
+
+
 theta = npj.linspace(0, 90, 100)
-
-
-
+'''
+theta = 22
+'''
+length = npj.linspace(0, 4, 100)
 
 
 "Determine input wave to each power combiner"
 "Initial setting"
-_X_folded_array_theta = _X_folded_array(
-                            **{f"cm{i}": {'cp': {'theta': theta}} for i in range (num_stacks)},
-                            )
+setting = sax.get_settings(_X_folded_array)
+for i in range (num_stacks):
+    setting[f'cm{i}']['cp']['theta']=theta
+_X_folded_array_theta = _X_folded_array(**setting)
+
 
 
 "Loop to modify every power combiner"
@@ -100,31 +99,32 @@ ampl2_pc = dict()
 phace2_pc = dict()
 ctr = 1
 
+
 for i in range (num_stacks - 1):
-    ampl1_pc[i] = npj.abs(_X_folded_array_theta[('in0','out'+str(i))])/((i+1)**2)
-    phace1_pc[i] =  npj.angle(_X_folded_array_theta[('in0','out'+str(i))])
+    ampl1_pc[i] = npj.abs(_X_folded_array_theta[('in0','out'+str(i))]) / (i+1)**2
+    phace1_pc[i] = npj.angle(_X_folded_array_theta[('in0','out'+str(i))])
     ampl2_pc[i] = npj.abs(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
     phace2_pc[i] = npj.angle(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
-    _X_folded_array_theta = _X_folded_array(
-                                **{f"cm{j}": {'cp': {'theta': theta}} for j in range (num_stacks)},
-                                **{f'pc{k}': {'ampl_1': ampl1_pc[i], 'phace_1': phace1_pc[i],
-                                              'ampl_2': ampl2_pc[i], 'phace_2': phace2_pc[i]}
-                                               for k in range (ctr)
-                                   }
-                                )
+    for k in range (ctr):
+        setting[f'pc{k}']['ampl_1']=ampl1_pc[i]
+        setting[f'pc{k}']['phace_1']=phace1_pc[i]
+        setting[f'pc{k}']['ampl_2']=ampl2_pc[i]
+        setting[f'pc{k}']['phace_2']=phace2_pc[i]
+    
+    _X_folded_array_theta = _X_folded_array(**setting)
     ctr += 1
 
 
 
+_X_folded_array_S11 = npj.abs(_X_folded_array_theta[('in1', 'out'+str(num_stacks-1))])
 
-_X_folded_array_S11 = npj.abs(_X_folded_array_theta[('in0', 'out'+str(num_stacks-1))])
-_X_folded_array_S13 = npj.abs(_X_folded_array_theta[('in2', 'out'+str(num_stacks-1))])
+
 
 fig, ax1 = plt.subplots(1)
 'ax2 = ax1.twinx()'
 ax1.plot(theta, _X_folded_array_S11, color="red", label="S11")
 ax1.set_ylabel(r"Transmission Effciency")
-ax1.set_xlabel(r"Angle [deg]")
+ax1.set_xlabel(r"Theta")
 fig.suptitle("X-coupler Folded Array")
 """
 ax2.plot(theta, mzi_array_S12, color="red", label="S13")
@@ -134,4 +134,3 @@ plt.show()
 
 end= time.time()
 print(f"time: {end - start} s")
-
