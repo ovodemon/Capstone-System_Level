@@ -11,9 +11,7 @@ import jax.example_libraries.optimizers as opt
 import jax.numpy as npj
 import matplotlib.pyplot as plt  # plotting
 import sax
-import time
 from tqdm.notebook import trange
-
 
 
 'Coupler'
@@ -51,10 +49,10 @@ def coupler(theta=10) -> sax.SDict:
     return coupler_dict
 
 'Taper'
-def taper(a=0.4, b=0.5, c=7, z=0.9, wavelen=1.55, n_eff=3.0, length=0.3, alpha=0.0):
+def taper(a=0.4, b=0.5, c=7, z=0.9, wavelen=1.55, n_eff=3.0, length=0.5, alpha=0.0):
     X = a*(b*npj.square(z) + (1-b)*z) + (1-a)*npj.square(npj.sin(c*z*npj.pi/2))
     phase = 2*npj.pi*length*n_eff/wavelen
-    transmission = (-X)*npj.exp(-1.j*phase)
+    transmission = npj.power(10, -(alpha * length)/20)*npj.exp(1.j*phase)
     sdict = sax.reciprocal(
         {
             ("in0", "out0"): transmission
@@ -89,7 +87,7 @@ def sbend(wavelen=1.55, n_eff=3.0, length=1, alpha=0.0):
     return sdict
 
 'Power Combiner: need determine in1 and in2'
-def  powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, length=0.5, n_eff=3.0):
+def powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, length=0.5, n_eff=3.0):
     ampl = npj.sqrt(npj.square(ampl_1) + npj.square(ampl_2) + 2*ampl_1*ampl_2*npj.exp(1.j*(phace_1-phace_2)))
     phase_combine = npj.arctan((ampl_1*npj.sin(phace_1)+ampl_2*npj.sin(phace_2)) / (ampl_1*npj.cos(phace_1)+ampl_2*npj.cos(phace_2)))
     phase_length = 2*npj.pi*length*n_eff/wavelen
@@ -101,5 +99,3 @@ def  powercombine(ampl_1=0.2, ampl_2=0.1, phace_1=1, phace_2=1, wavelen=1.55, le
         }
         )
     return sdict
-
-
