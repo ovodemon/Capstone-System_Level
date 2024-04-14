@@ -6,17 +6,10 @@ Created on Mon Mar 25 10:19:24 2024
 @author: zhouy24
 """
 
-import jax
-import jax.example_libraries.optimizers as opt
-import jax.numpy as npj
-import matplotlib.pyplot as plt  # plotting
-import sax
 import time
-from tqdm.notebook import trange
 from model_draft import *
 
 num_stacks = int(input("The number of stacks: "))
-
 
 start = time.time()
 
@@ -78,51 +71,47 @@ _X_folded_array, info = sax.circuit(
 )
 
 
-
 theta = npj.linspace(0, 90, 100)
-length = npj.linspace(0, 4, 100)
-
-
+length = npj.linspace(1.5, 2.1, 100)
 
 
 "Determine input wave to each power combiner"
 "Initial setting"
-_X_folded_array_theta = _X_folded_array(
-                            **{f"cm{i}": {'cp': {'theta': theta}} for i in range (num_stacks)},
-                            )
+setting = sax.get_settings(_X_folded_array)
+for i in range (num_stacks):
+    setting[f'cm{i}']['cp']['theta']=theta
+    
+_X_folded_array_theta = _X_folded_array(**setting)
 
 
 "Loop to modify every power combiner"
-
-
 ampl1_pc = dict()
 phace1_pc = dict()
 ampl2_pc = dict()
 phace2_pc = dict()
 _X_folded_array_S11 = []
-ctr = 1
-
-
+theta_max = []
 
 for a in range (len(length)):
     for i in range (num_stacks - 1):
-        ampl1_pc[i] = npj.abs(_X_folded_array_theta[('in0','out'+str(i))])/((i+1)**2)
+        ampl1_pc[i] = npj.abs(_X_folded_array_theta[('in0','out'+str(i))]) / (i+1)**2
         phace1_pc[i] =  npj.angle(_X_folded_array_theta[('in0','out'+str(i))])
         ampl2_pc[i] = npj.abs(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
         phace2_pc[i] = npj.angle(_X_folded_array_theta[('in'+str(i+1),'out'+str(i+num_stacks))])
-        _X_folded_array_theta = _X_folded_array(
-                                    **{f"cm{j}": {'cp': {'theta': theta},
-                                                  'sb': {'length': length[a]}} for j in range (num_stacks)},
-                                    **{f'pc{k}': {'ampl_1': ampl1_pc[i], 'phace_1': phace1_pc[i],
-                                                  'ampl_2': ampl2_pc[i], 'phace_2': phace2_pc[i]}
-                                                   for k in range (ctr)
-                                       }
-                                    )
-        ctr += 1
+        for j in range (i+1):
+            setting[f'pc{j}']['ampl_1']=ampl1_pc[i]
+            setting[f'pc{j}']['phace_1']=phace1_pc[i]
+            setting[f'pc{j}']['ampl_2']=ampl2_pc[i]
+            setting[f'pc{j}']['phace_2']=phace2_pc[i]
+        for k in range (num_stacks -1):
+            setting[f'sb{k}']['length']=length[a]
+                    
+        _X_folded_array_theta = _X_folded_array(**setting)
+        
     te = npj.abs(_X_folded_array_theta[('in0', 'out'+str(num_stacks-1))])
     peak = te.max()
+    theta_max.append(int(npj.where(te == peak)[0][0]) * 90/100)
     _X_folded_array_S11.append(float(peak))
-
 
 '''
 _X_folded_array_S11 = npj.abs(_X_folded_array_theta[('in0', 'out'+str(num_stacks-1))])
@@ -144,5 +133,3 @@ plt.show()
 
 end= time.time()
 print(f"time: {end - start} s")
-
-
