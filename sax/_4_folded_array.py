@@ -12,7 +12,9 @@ import jax.numpy as npj
 import matplotlib.pyplot as plt  # plotting
 import sax
 from tqdm.notebook import trange
-from model_draft import *
+from model_test import *
+
+
 
 '4 folded grating array'
 _4_folded_array, info = sax.circuit(
@@ -39,6 +41,7 @@ _4_folded_array, info = sax.circuit(
             "powercombine2": "powercombine",
             "pc2_sbend": "sbend",
             "powercombine3": "powercombine",
+            "pc3_sbend": "sbend",
         },
         "connections": {
             "first_coupler,out0": "first_taper,in0",
@@ -47,8 +50,8 @@ _4_folded_array, info = sax.circuit(
             "second_coupler,out0": "second_taper,in0",
             "second_taper,out0": "second_ninetybend,in0",
             "second_ninetybend,out0": "second_sbend,in0",
-            "first_sbend,out0": "powercombine1,in0",
-            "second_sbend,out0": "powercombine1,in1",
+            "first_sbend,out0": "powercombine1,in1",
+            "second_sbend,out0": "powercombine1,in0",
             "powercombine1,out0": "pc1_sbend,in0",
             "third_coupler,out0": "third_taper,in0",
             "third_taper,out0": "third_ninetybend,in0",
@@ -61,13 +64,14 @@ _4_folded_array, info = sax.circuit(
             "fourth_ninetybend,out0": "fourth_sbend,in0",
             "fourth_sbend,out0": "powercombine3,in0",
             "pc2_sbend,out0": "powercombine3,in1",
+            "powercombine3,out0": "pc3_sbend,in0",
         },
         "ports": {
             "in0": "first_coupler,in0",
             "in1": "second_coupler,in0",
             "in2": "third_coupler,in0",
             "in3": "fourth_coupler,in0",
-            "out0": "powercombine3,out0",
+            "out0": "pc3_sbend,out0",
             "out1": "first_sbend,out0",
             "out2": "second_sbend,out0",
             "out3": "pc1_sbend,out0",
@@ -87,18 +91,25 @@ _4_folded_array, info = sax.circuit(
 
 theta = npj.linspace(0, 90, 100)
 
+setting = sax.get_settings(_4_folded_array)
+setting['first_coupler']['theta']=theta
+setting['second_coupler']['theta']=theta
+setting['third_coupler']['theta']=theta
+setting['fourth_coupler']['theta']=theta
+
+
 "Determine input wave to each power combiner"
-mzi_array_theta = _4_folded_array(
-                        first_coupler={"theta": theta},
-                        second_coupler={"theta": theta},
-                        third_coupler={"theta": theta},
-                        fourth_coupler={"theta": theta})
+_4_folded_array_theta = _4_folded_array(**setting)
+
+
 "Determine input wave to the first power combiner"
-pc1_ampl1 = npj.abs(mzi_array_theta[('in0', 'out1')])
-pc1_phace1 = npj.angle(mzi_array_theta[('in0', 'out1')])
-pc1_ampl2 = npj.abs(mzi_array_theta[('in1', 'out2')])
-pc1_phace2 = npj.angle(mzi_array_theta[('in1', 'out2')])
-mzi_array_theta = _4_folded_array(
+pc1_ampl1 = npj.abs(_4_folded_array_theta[('in0', 'out1')])
+pc1_phace1 = npj.angle(_4_folded_array_theta[('in0', 'out1')])
+pc1_ampl2 = npj.abs(_4_folded_array_theta[('in1', 'out2')])
+pc1_phace2 = npj.angle(_4_folded_array_theta[('in1', 'out2')])
+
+
+_4_folded_array_theta = _4_folded_array(
                         first_coupler={"theta": theta},
                         second_coupler={"theta": theta},
                         powercombine1={"ampl_1": pc1_ampl1, "ampl_2": pc1_ampl2,
@@ -107,11 +118,11 @@ mzi_array_theta = _4_folded_array(
                         fourth_coupler={"theta": theta})
 
 "Determine input wave to the second power combiner"
-pc2_ampl1 = npj.abs(mzi_array_theta[('in0', 'out3')])/2
-pc2_phace1 = npj.angle(mzi_array_theta[('in0', 'out3')])
-pc2_ampl2 = npj.abs(mzi_array_theta[('in2', 'out4')])
-pc2_phace2 = npj.angle(mzi_array_theta[('in2', 'out4')])
-mzi_array_theta = _4_folded_array(
+pc2_ampl1 = npj.abs(_4_folded_array_theta[('in0', 'out3')]) * npj.square(pc1_ampl1/(pc1_ampl1+pc1_ampl2))
+pc2_phace1 = npj.angle(_4_folded_array_theta[('in0', 'out3')])
+pc2_ampl2 = npj.abs(_4_folded_array_theta[('in2', 'out4')])
+pc2_phace2 = npj.angle(_4_folded_array_theta[('in2', 'out4')])
+_4_folded_array_theta = _4_folded_array(
                         first_coupler={"theta": theta},
                         second_coupler={"theta": theta},
                         powercombine1={"ampl_1": pc1_ampl1, "ampl_2": pc1_ampl2,
@@ -122,11 +133,11 @@ mzi_array_theta = _4_folded_array(
                         fourth_coupler={"theta": theta})
 
 "Determine input wave to the third power combiner"
-pc3_ampl1 = npj.abs(mzi_array_theta[('in0', 'out5')])/3
-pc3_phace1 = npj.angle(mzi_array_theta[('in0', 'out5')])
-pc3_ampl2 = npj.abs(mzi_array_theta[('in3', 'out6')])
-pc3_phace2 = npj.angle(mzi_array_theta[('in3', 'out6')])
-mzi_array_theta = _4_folded_array(
+pc3_ampl1 = npj.abs(_4_folded_array_theta[('in0', 'out5')]) * npj.square(pc2_ampl1/(pc2_ampl1+pc2_ampl2))
+pc3_phace1 = npj.angle(_4_folded_array_theta[('in0', 'out5')])
+pc3_ampl2 = npj.abs(_4_folded_array_theta[('in3', 'out6')])
+pc3_phace2 = npj.angle(_4_folded_array_theta[('in3', 'out6')])
+_4_folded_array_theta = _4_folded_array(
                         first_coupler={"theta": theta},
                         second_coupler={"theta": theta},
                         powercombine1={"ampl_1": pc1_ampl1, "ampl_2": pc1_ampl2,
@@ -139,8 +150,9 @@ mzi_array_theta = _4_folded_array(
                                        "phace_1": pc3_phace1, "phace_2": pc3_phace2})
 
 
-mzi_array_S11 = npj.abs(mzi_array_theta[('in0', 'out0')])
-mzi_array_S12 = npj.abs(mzi_array_theta[('in2', 'out0')])
+
+mzi_array_S11 = npj.abs(_4_folded_array_theta[('in1', 'out0')])
+mzi_array_S12 = npj.abs(_4_folded_array_theta[('in2', 'out0')])
 
 fig, ax1 = plt.subplots(1)
 'ax2 = ax1.twinx()'
@@ -153,12 +165,3 @@ ax2.plot(theta, mzi_array_S12, color="red", label="S13")
 """
 plt.legend()
 plt.show()
-
-
-
-
-
-
-
-
-
