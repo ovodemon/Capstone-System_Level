@@ -121,4 +121,12 @@ def loss_1(sets):
 
 sets = [20, 1.6]
 x0 = [21.6, 1.7]
+
+loss_1_nelder = minimize(loss_1, x0, method='nelder-mead',options={'xatol': 1e-8, 'disp': True})
+end= time.time()
+print(f"Nelder-mead's time: {end - start} s")
+start = time.time()
+loss_1_BFGS = minimize(loss_1, x0, method='BFGS', options={'gtol': 1e-8,'disp': True})
+end= time.time()
+print(f"BFGS's time: {end - start} s")
     
