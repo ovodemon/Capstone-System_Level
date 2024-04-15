@@ -73,7 +73,7 @@ _X_folded_array, info = sax.circuit(
 
 
 
-def transmission_1(sets):
+def tranmission_1(sets):
     """
     Parameters
     sets : array_like
@@ -115,7 +115,10 @@ def transmission_1(sets):
 
     return te
 
+def loss_1(sets):
+    return 1-tranmission_1(sets)
 
-    sets = [20, 1.6]
-    x0 = [21.6, 1.7]
+
+sets = [20, 1.6]
+x0 = [21.6, 1.7]
     
